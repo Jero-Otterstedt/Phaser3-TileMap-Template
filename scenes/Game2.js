@@ -1,15 +1,10 @@
-// URL to explain PHASER scene: https://rexrainbow.github.io/phaser3-rex-notes/docs/site/scene/
-export default class Game extends Phaser.Scene {
+export default class Game2 extends Phaser.Scene {
   constructor() {
-    super("game");
-  }
-
-  init() {
-    this.registry.set("score", 0);
+    super("game2");
   }
 
   preload() {
-    this.load.tilemapTiledJSON("map", "public/assets/tilemap/map.json");
+    this.load.tilemapTiledJSON("map2", "public/assets/tilemap/map2.json");
     this.load.image("tileset", "public/assets/tileset.png");
     this.load.image("star", "public/assets/objeto.png");
     this.load.spritesheet("dude", "public/assets/personaje.png", {
@@ -19,22 +14,20 @@ export default class Game extends Phaser.Scene {
   }
 
   create() {
-    const map = this.make.tilemap({ key: "map" });
+    const map = this.make.tilemap({ key: "map2" });
     const tileset = map.addTilesetImage("tileset", "tileset");
-    const layerNames = map.layers.map(l => l.name);
-    const objectLayerNames = map.objects.map(o => o.name);
+    const layers = map.layers.map(l => l.name);
+    const objectsLayer = map.getObjectLayer(map.objects[0].name);
 
-    map.createLayer(layerNames[0], tileset);
-    this.platformLayer = map.createLayer(layerNames[1], tileset);
-    const objectsLayer = map.getObjectLayer(objectLayerNames[0]);
+    map.createLayer(layers[0], tileset);
+    this.platformLayer = map.createLayer(layers[1], tileset);
 
     const spawnPoint = objectsLayer.objects.find(o => o.name === "player");
-    const playerX = spawnPoint?.x ?? 0;
-    const playerY = spawnPoint?.y ?? 0;
+    const { x = 0, y = 0 } = spawnPoint || {};
 
-    this.player = this.physics.add.sprite(playerX, playerY, "dude")
-      .setBounce(0.2)
+    this.player = this.physics.add.sprite(x, y, "dude")
       .setCollideWorldBounds(true)
+      .setBounce(0.2)
       .setGravityY(0);
 
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -46,8 +39,9 @@ export default class Game extends Phaser.Scene {
     this.stars = this.physics.add.group();
     objectsLayer.objects.forEach(obj => {
       if (obj.type === "star") {
-        const star = this.stars.create(obj.x, obj.y, "star");
-        star.setGravityY(0).setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
+        this.stars.create(obj.x, obj.y, "star")
+          .setGravityY(0)
+          .setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
       }
     });
 
@@ -67,15 +61,11 @@ export default class Game extends Phaser.Scene {
       this.physics.add.overlap(this.player, this.exit, this.tryNextLevel, null, this);
     }
 
-    if (!this.anims.exists("turn")) {
-      this.anims.create({ key: "turn", frames: [{ key: "dude", frame: 0 }], frameRate: 20 });
-    }
-    if (!this.anims.exists("left")) {
-      this.anims.create({ key: "left", frames: [{ key: "dude", frame: 0 }], frameRate: 10, repeat: -1 });
-    }
-    if (!this.anims.exists("right")) {
-      this.anims.create({ key: "right", frames: [{ key: "dude", frame: 0 }], frameRate: 10, repeat: -1 });
-    }
+    this.anims.create({ key: "turn", frames: [{ key: "dude", frame: 0 }], frameRate: 20 });
+    this.anims.create({ key: "left", frames: [{ key: "dude", frame: 0 }], frameRate: 10, repeat: -1 });
+    this.anims.create({ key: "right", frames: [{ key: "dude", frame: 0 }], frameRate: 10, repeat: -1 });
+
+    this.add.text(100, 100, "¡Nivel 2!", { fontSize: "48px", fill: "#000" });
   }
 
   update() {
@@ -104,7 +94,7 @@ export default class Game extends Phaser.Scene {
   tryNextLevel() {
     console.log("Intentando pasar de nivel", this.stars.countActive(true));
     if (this.stars.countActive(true) === 0) {
-      this.scene.start("game2");
+      this.scene.start("game3");
     }
   }
 }

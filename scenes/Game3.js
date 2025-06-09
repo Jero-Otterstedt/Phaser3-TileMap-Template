@@ -1,15 +1,10 @@
-// URL to explain PHASER scene: https://rexrainbow.github.io/phaser3-rex-notes/docs/site/scene/
-export default class Game extends Phaser.Scene {
+export default class Game3 extends Phaser.Scene {
   constructor() {
-    super("game");
-  }
-
-  init() {
-    this.registry.set("score", 0);
+    super("game3");
   }
 
   preload() {
-    this.load.tilemapTiledJSON("map", "public/assets/tilemap/map.json");
+    this.load.tilemapTiledJSON("map3", "public/assets/tilemap/map3.json");
     this.load.image("tileset", "public/assets/tileset.png");
     this.load.image("star", "public/assets/objeto.png");
     this.load.spritesheet("dude", "public/assets/personaje.png", {
@@ -19,23 +14,26 @@ export default class Game extends Phaser.Scene {
   }
 
   create() {
-    const map = this.make.tilemap({ key: "map" });
+    const map = this.make.tilemap({ key: "map3" });
     const tileset = map.addTilesetImage("tileset", "tileset");
     const layerNames = map.layers.map(l => l.name);
-    const objectLayerNames = map.objects.map(o => o.name);
+    const objectLayer = map.getObjectLayer(map.objects[0].name);
 
     map.createLayer(layerNames[0], tileset);
     this.platformLayer = map.createLayer(layerNames[1], tileset);
-    const objectsLayer = map.getObjectLayer(objectLayerNames[0]);
 
-    const spawnPoint = objectsLayer.objects.find(o => o.name === "player");
-    const playerX = spawnPoint?.x ?? 0;
-    const playerY = spawnPoint?.y ?? 0;
+    const spawnPoint = objectLayer.objects.find(o => o.name === "player");
+    const { x = 0, y = 0 } = spawnPoint || {};
 
-    this.player = this.physics.add.sprite(playerX, playerY, "dude")
-      .setBounce(0.2)
+    this.player = this.physics.add.sprite(x, y, "dude")
       .setCollideWorldBounds(true)
-      .setGravityY(0);
+      .setGravityY(0)
+      .setBounce(0.2);
+
+    this.cameras.main.startFollow(this.player);
+    this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+
+    this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
 
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keyR = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
@@ -44,10 +42,11 @@ export default class Game extends Phaser.Scene {
     this.physics.add.collider(this.player, this.platformLayer);
 
     this.stars = this.physics.add.group();
-    objectsLayer.objects.forEach(obj => {
+    objectLayer.objects.forEach(obj => {
       if (obj.type === "star") {
-        const star = this.stars.create(obj.x, obj.y, "star");
-        star.setGravityY(0).setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
+        this.stars.create(obj.x, obj.y, "star")
+          .setGravityY(0)
+          .setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
       }
     });
 
@@ -56,26 +55,20 @@ export default class Game extends Phaser.Scene {
 
     this.scoreText = this.add.text(16, 16, `Score: ${this.registry.get("score")}`, {
       fontSize: "32px", fill: "#000",
-    });
+    }).setScrollFactor(0);
 
-    const exitObj = objectsLayer.objects.find(obj => obj.name === "salida");
+    const exitObj = objectLayer.objects.find(o => o.name === "salida");
     if (exitObj) {
       this.exit = this.physics.add.sprite(exitObj.x, exitObj.y)
         .setSize(32, 32)
         .setVisible(false)
         .setImmovable(true);
-      this.physics.add.overlap(this.player, this.exit, this.tryNextLevel, null, this);
+      this.physics.add.overlap(this.player, this.exit, this.endGame, null, this);
     }
 
-    if (!this.anims.exists("turn")) {
-      this.anims.create({ key: "turn", frames: [{ key: "dude", frame: 0 }], frameRate: 20 });
-    }
-    if (!this.anims.exists("left")) {
-      this.anims.create({ key: "left", frames: [{ key: "dude", frame: 0 }], frameRate: 10, repeat: -1 });
-    }
-    if (!this.anims.exists("right")) {
-      this.anims.create({ key: "right", frames: [{ key: "dude", frame: 0 }], frameRate: 10, repeat: -1 });
-    }
+    this.anims.create({ key: "turn", frames: [{ key: "dude", frame: 0 }], frameRate: 20 });
+    this.anims.create({ key: "left", frames: [{ key: "dude", frame: 0 }], frameRate: 10, repeat: -1 });
+    this.anims.create({ key: "right", frames: [{ key: "dude", frame: 0 }], frameRate: 10, repeat: -1 });
   }
 
   update() {
@@ -101,10 +94,22 @@ export default class Game extends Phaser.Scene {
     this.scoreText.setText(`Score: ${score}`);
   }
 
-  tryNextLevel() {
-    console.log("Intentando pasar de nivel", this.stars.countActive(true));
-    if (this.stars.countActive(true) === 0) {
-      this.scene.start("game2");
+  endGame() {
+    if (this.stars.countActive(true) === 0 && !this.winText) {
+      const cam = this.cameras.main;
+      const centerX = cam.worldView.x + cam.width / 2;
+      const centerY = cam.worldView.y + cam.height / 2;
+
+      this.winText = this.add.text(centerX, centerY, "¡Ganaste!\nPresiona P para reiniciar", {
+        fontSize: "48px",
+        fill: "#0000FF",
+        align: "center"
+      }).setOrigin(0.5);
+
+      
+      this.input.keyboard.once('keydown-P', () => {
+        this.scene.start("game"); 
+      });
     }
   }
 }
